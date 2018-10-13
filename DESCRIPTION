@@ -1,0 +1,9 @@
+Package: qrabbit
+Title: Quantum Rabbit
+Version: 0.0.0.9000
+Authors@R: person("Chung-Yi", "Yang", email = "cyyang@ntu.edu.tw", role = c("aut", "cre"))
+Description: Quantum Rabbit related stuff
+Depends: R (>= 3.4.3)
+License: What license is it under?
+Encoding: UTF-8
+LazyData: true
