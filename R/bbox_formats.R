@@ -124,3 +124,65 @@ bbox2xml = function(csv = NA, xmldir = "xml", id_col = 1, bbox_col = 3) {
     }
 }
 
+bbox_xml2csv = function(xmldir = "xml", csvref = NA, csvto = NA, id_col = 1, bbox_col = 3) {
+    # currently find accno-like string only
+    library(dplyr)
+    library(purrr)
+    library(readr)
+    library(xml2)
+    library(stringr)
+
+    if (!dir.exists(xmldir)) return(NA)
+    f = list.files(xmldir, "*.xml")
+    ACCNO = character(0)
+    bbox = character(0)
+    for (i in seq_along(f)) {
+	x = f[i] %>% read_xml()
+	accno = x %>% 
+	    xml_find_all(".//filename") %>% 
+	    xml_text %>% 
+	    stringr::str_extract("RA[0-9]*")
+	node_box = x %>% xml_find_all(".//bndbox")
+	bndbox = ""
+	for (b in node_box) {
+	    xmin = b %>% xml_find_all(".//xmin") %>% xml_text
+	    ymin = b %>% xml_find_all(".//ymin") %>% xml_text
+	    xmax = b %>% xml_find_all(".//xmax") %>% xml_text
+	    ymax = b %>% xml_find_all(".//ymax") %>% xml_text
+	    bndbox = paste(paste0("(", paste0(c(xmin,ymin,xmax,ymax),collapse=". ") ,")"), bndbox)
+	}
+	ACCNO[i] = accno
+	bbox[i] = bndbox
+    }
+    box = data.frame(ACCNO, bbox) %>% 
+	dplyr::filter(nchar(as.character(bbox))>5) 
+    if (file.exists(csvref)) {
+	box = read_csv(csvref) %>%
+	    select(id_col) %>%
+	    set_names("ACCNO") %>%
+	    mutate_all(as.character) %>%
+	    left_join(box, by = "ACCNO") %>%
+	    mutate(bbox = ifelse(is.na(bbox), "", as.character(bbox))) 
+    }
+    if (!is.na(csvto)) {
+	box %>% write_csv(csvto)
+    }
+    return(box)
+}
+
+
+bbox_draw = function(im = NA, bbox = NA, color = "red") {
+    library(imager)
+    if (!is.cimg(im)) return(NA)
+    if (is.list(bbox)) {
+	for(bb in bbox) {
+	    if(all(names(bb) == c("xmin","ymin","xmax","ymax"))) {
+		im = implot(im, {rect(bb["xmin"],bb["ymin"],bb["xmax"],bb["ymax"], col=color)})
+	    }
+	}
+    }
+    if (is.vector(bbox) & length(bbox) == 4) {
+	im = implot(im, {rect(bbox[1],bbox[2],bbox[3],bbox[4], col=color)})
+    }
+    return(im)
+}
