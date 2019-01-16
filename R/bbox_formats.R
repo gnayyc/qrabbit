@@ -3,6 +3,7 @@ library(tidyverse)
 bbox_vector = function(bbox = "", format = "femh") {
   # return list of c(x1, y1, x2, y2)
   library(stringr)
+  library(purrr)
 
   if (is.na(bbox)) { return(c(NA,NA,NA,NA)) }
 
@@ -15,7 +16,7 @@ bbox_vector = function(bbox = "", format = "femh") {
 	    cat("Format error!\n")
 	    return(NA)
 	}
-	r[[i]] = c(p[1], p[2], p[3], p[4])
+	r[[i]] = c(p[1], p[2], p[3], p[4]) %>% map_int(as.integer)
 	names(r[[i]]) = c("xmin","ymin","xmax","ymax")
     }
     return(r)
@@ -23,6 +24,7 @@ bbox_vector = function(bbox = "", format = "femh") {
 }
 
 parse_bbox = function(bbox_str = "", color = "red", strokewidth = 2) {
+  # for magick conver
   library(stringr)
 
   if (is.na(bbox_str)) { return("") }
@@ -136,12 +138,16 @@ bbox_xml2csv = function(xmldir = "xml", csvref = NA, csvto = NA, id_col = 1, bbo
     f = list.files(xmldir, "*.xml")
     ACCNO = character(0)
     bbox = character(0)
+    classes = character(0)
     for (i in seq_along(f)) {
 	x = f[i] %>% read_xml()
 	accno = x %>% 
 	    xml_find_all(".//filename") %>% 
 	    xml_text %>% 
 	    stringr::str_extract("RA[0-9]*")
+	class = x %>% 
+	    xml_find_all(".//class") %>% 
+	    xml_text 
 	node_box = x %>% xml_find_all(".//bndbox")
 	bndbox = ""
 	for (b in node_box) {
@@ -153,8 +159,9 @@ bbox_xml2csv = function(xmldir = "xml", csvref = NA, csvto = NA, id_col = 1, bbo
 	}
 	ACCNO[i] = accno
 	bbox[i] = bndbox
+	classes[i] = class
     }
-    box = data.frame(ACCNO, bbox) %>% 
+    box = data.frame(ACCNO, classes, bbox) %>% 
 	dplyr::filter(nchar(as.character(bbox))>5) 
     if (file.exists(csvref)) {
 	box = read_csv(csvref) %>%
@@ -183,6 +190,32 @@ bbox_draw = function(im = NA, bbox = NA, color = "red") {
     }
     if (is.vector(bbox) & length(bbox) == 4) {
 	im = implot(im, {rect(bbox[1],bbox[2],bbox[3],bbox[4], col=color)})
+    }
+    return(im)
+}
+
+bbox_draw = function(im = NA, bbox = NA, color = "red", cimg = F) {
+    # im can be cimg or file_path
+    library(imager)
+    
+    if (!is.cimg(im)) {
+	if (file.exists(im)) im = load.image(im)
+	if (!is.cimg(im)) return(NA)
+    }
+    if (is.list(bbox)) {
+        for(bb in bbox) {
+            if(all(names(bb) == c("xmin","ymin","xmax","ymax"))) {
+                im = implot(im, 
+			    {rect(bb["xmin"],bb["ymin"],bb["xmax"],bb["ymax"], 
+				  border=color, lwd=2)})
+            }
+        }
+    }
+    if (is.vector(bbox) & length(bbox) == 4) {
+        im = implot(im, {rect(bbox[1],bbox[2],bbox[3],bbox[4], border=color)})
+	im = implot(im, 
+		    {rect(bbox[1],bbox[2],bbox[3],bbox[4],
+			  border=color, lwd=2)})
     }
     return(im)
 }
