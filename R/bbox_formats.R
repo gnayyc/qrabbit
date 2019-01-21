@@ -194,28 +194,39 @@ bbox_draw = function(im = NA, bbox = NA, color = "red") {
     return(im)
 }
 
-bbox_draw = function(im = NA, bbox = NA, color = "red", cimg = F) {
-    # im can be cimg or file_path
+bbox_draw = function(im = NA, bbox = NA, color = "red", lwd = 4, use_plot = 0) {
     library(imager)
     
-    if (!is.cimg(im)) {
-	if (file.exists(im)) im = load.image(im)
-	if (!is.cimg(im)) return(NA)
+    if(is.character(im)) {
+	if (!file.exists(im)) return(NA)
+	im = load.image(im)
+    }
+    if (!is.cimg(im)) return(NA)
+
+    if (!is.list(bbox) & is.vector(bbox) & length(bbox) == 4) {
+	b = bbox
+	bbox = list()
+	bbox[[1]] = map_int(b, as.integer)
+	names(bbox[[1]]) = c("xmin","ymin","xmax","ymax")
     }
     if (is.list(bbox)) {
         for(bb in bbox) {
-            if(all(names(bb) == c("xmin","ymin","xmax","ymax"))) {
-                im = implot(im, 
-			    {rect(bb["xmin"],bb["ymin"],bb["xmax"],bb["ymax"], 
-				  border=color, lwd=2)})
+	    if (dim(im)[4] == 1) im = add.colour(im)
+            if(all(!is.na(bb)) & all(names(bb) == c("xmin","ymin","xmax","ymax"))) {
+		bb = map_int(bb, as.integer)
+		if (use_plot == 1) {
+		    im = implot(im, {rect(bb["xmin"],bb["ymin"],bb["xmax"],bb["ymax"], border=color, lwd=2)})
+		} else {
+		    msk1 = (Xc(im) %inr% c(bb["xmin"], bb["xmax"]) & 
+			    Yc(im) %inr% c(bb["ymin"], bb["ymax"]))
+		    msk2 = (Xc(im) %inr% c(bb["xmin"]-lwd, bb["xmax"]+lwd) & 
+			    Yc(im) %inr% c(bb["ymin"]-lwd, bb["ymax"]+lwd))
+		    mask = msk2 - msk1
+		    bg.red = imfill(dim=dim(im), val = c(1,0,0))
+		    im =  mask * bg.red + (1 - mask) * im
+		}
             }
         }
-    }
-    if (is.vector(bbox) & length(bbox) == 4) {
-        im = implot(im, {rect(bbox[1],bbox[2],bbox[3],bbox[4], border=color)})
-	im = implot(im, 
-		    {rect(bbox[1],bbox[2],bbox[3],bbox[4],
-			  border=color, lwd=2)})
     }
     return(im)
 }
