@@ -11,7 +11,8 @@ bbox_vector = function(bbox = "", format = "femh") {
     bboxes = str_match_all(bbox, "\\(.*?\\)")[[1]]
     r = list()
     for (i in seq_along(bboxes)) {
-	p = str_match_all(bboxes[i], "\\d+")[[1]]
+	p0 = str_extract(bboxes[i], "^\\S+\\s+\\S+\\s+\\S+\\s+\\S+")
+	p = str_match_all(p0, "\\d+")[[1]]
 	if (length(p) == 0 | length(p) %% 4) {
 	    cat("Format error!\n")
 	    return(NA)
